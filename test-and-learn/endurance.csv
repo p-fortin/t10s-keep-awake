@@ -1,0 +1,2 @@
+timestamp,event,freq_hz,db,dur_s,interval_min,cycle,since_signal_s,note
+2026-07-14T13:15:43,wake,40,-45,8,14,0,0,origin established

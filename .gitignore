@@ -1,0 +1,38 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# Config / secrets (runtime config may live in %APPDATA%, not the repo)
+*.local.toml
+
+# Test-and-learn scratch: webcam frames + churning logs (raw result CSVs are kept)
+test-and-learn/*.jpg
+test-and-learn/*.log
+test-and-learn/led_holds_buggy.csv
+
+# Python caches
+__pycache__/
+*.pyc
+
+# AI session/handoff/spec/plan docs — kept locally, not published
+HANDOFF.md
+docs/superpowers/
+CLAUDE.md
+
+# Lab notebooks: working notes, superseded conclusions, rig-specific values (webcam ROI etc).
+# docs/RESEARCH.md is the single published account of the method and findings; the raw CSVs and
+# led_watcher.py stay tracked so every chart remains reproducible.
+test-and-learn/FINDINGS.md
+test-and-learn/CAMPAIGN.md
+# Superseded by led_watcher.py and the `pulse` subcommand.
+test-and-learn/keepawake_test.py
+
+# Personal / local-only notes — never published
+PROMOTION.md
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/

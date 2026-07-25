@@ -1,0 +1,410 @@
+<meta charset="utf-8">
+<title>T10S Keep-Awake</title>
+<style>
+  /* Dark-first, but follows the Windows theme via prefers-color-scheme. */
+  :root {
+    --bg: #16181d;
+    --card: #1e2128;
+    --card-2: #23272f;
+    --line: #2f343d;
+    --text: #eef1f6;
+    --dim: #9aa3b2;
+    --faint: #6b7382;
+    --accent: #20dc6e;
+    --accent-dim: #128f48;
+    --warn: #ffb020;
+    --bad: #ff5f56;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 8px 24px rgba(0, 0, 0, .35);
+    --radius: 12px;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --card-2: #f7f9fc;
+      --line: #e2e6ec;
+      --text: #12151a;
+      --dim: #59616e;
+      --faint: #878f9c;
+      --accent: #12a854;
+      --accent-dim: #0d7d3e;
+      --warn: #b8730b;
+      --bad: #d33a30;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 24px rgba(16, 24, 40, .08);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: auto; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    font-size: 14.5px;
+    line-height: 1.45;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+    scrollbar-width: none;
+  }
+  body::-webkit-scrollbar { display: none; }
+  .wrap { padding: 18px 22px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- status card ---------- */
+  .status {
+    display: flex; align-items: center; gap: 16px;
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
+    border-left: 4px solid var(--accent);
+    transition: border-color .25s ease;
+  }
+  .status.warn { border-left-color: var(--warn); }
+  .status.bad  { border-left-color: var(--bad); }
+  .status.idle { border-left-color: var(--faint); }
+
+  .dot {
+    width: 11px; height: 11px; border-radius: 50%; flex: none;
+    background: var(--accent); box-shadow: 0 0 0 4px rgba(32, 220, 110, .16);
+  }
+  .status.warn .dot { background: var(--warn); box-shadow: 0 0 0 4px rgba(255, 176, 32, .16); }
+  .status.bad  .dot { background: var(--bad);  box-shadow: 0 0 0 4px rgba(255, 95, 86, .16); }
+  .status.idle .dot { background: var(--faint); box-shadow: 0 0 0 4px rgba(120, 130, 145, .14); }
+  /* Only pulse while genuinely active — a blinking dot on a failure reads as "working". */
+  .status.ok .dot { animation: breathe 2.6s ease-in-out infinite; }
+  @keyframes breathe { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+
+  .status .txt { flex: 1; min-width: 0; }
+  .status h1 {
+    margin: 0; font-size: 17px; font-weight: 650; letter-spacing: .2px;
+    font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  }
+  .status p { margin: 2px 0 0; color: var(--dim); font-size: 13px; }
+
+  .ring { position: relative; width: 58px; height: 58px; flex: none; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring circle { fill: none; stroke-width: 5; stroke-linecap: round; }
+  .ring .track { stroke: var(--line); }
+  .ring .fill { stroke: var(--accent); transition: stroke-dashoffset .95s linear, stroke .25s; }
+  .status.warn .ring .fill { stroke: var(--warn); }
+  .status.bad  .ring .fill { stroke: var(--bad); }
+  .ring b {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -.2px;
+  }
+
+  /* ---------- rows ---------- */
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 13px 16px; border-top: 1px solid var(--line);
+  }
+  .row:first-child { border-top: none; }
+  .row .lbl { flex: 1; min-width: 0; }
+  .row .lbl b { display: block; font-weight: 550; font-size: 14.5px; }
+  .row .lbl span { display: block; color: var(--dim); font-size: 12.5px; margin-top: 1px; }
+  .row.stack { display: block; }
+  .row.stack .head { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .row.stack .head .lbl { flex: 1; }
+
+  .sect {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase;
+    color: var(--faint); margin: 2px 2px -6px;
+  }
+
+  /* help "?" */
+  .help {
+    width: 18px; height: 18px; flex: none; border-radius: 50%;
+    border: 1.5px solid var(--faint); color: var(--faint);
+    font-size: 11.5px; font-weight: 700; line-height: 15px; text-align: center;
+    cursor: help; transition: color .15s, border-color .15s;
+  }
+  .help:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* toggle switch */
+  .sw { width: 42px; height: 24px; border-radius: 999px; background: var(--line);
+        position: relative; cursor: pointer; flex: none; transition: background .18s; }
+  .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+               border-radius: 50%; background: #fff; transition: transform .18s ease;
+               box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+  .sw.on { background: var(--accent); }
+  .sw.on::after { transform: translateX(18px); }
+
+  /* select */
+  select {
+    width: 100%; appearance: none; -webkit-appearance: none;
+    background: var(--card-2); color: var(--text);
+    border: 1px solid var(--line); border-radius: 9px;
+    padding: 10px 34px 10px 12px; font: inherit; font-size: 14px; cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--dim) 50%),
+                      linear-gradient(135deg, var(--dim) 50%, transparent 50%);
+    background-position: calc(100% - 17px) 50%, calc(100% - 12px) 50%;
+    background-size: 5px 5px, 5px 5px; background-repeat: no-repeat;
+    transition: border-color .15s;
+  }
+  select:hover { border-color: var(--faint); }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  .hint { font-size: 12.5px; margin-top: 8px; color: var(--dim); display: flex; gap: 7px; align-items: flex-start; }
+  .hint.ok  { color: var(--accent); }
+  .hint.bad { color: var(--bad); }
+  .hint.warn { color: var(--warn); }
+  .hint svg { flex: none; margin-top: 2px; }
+
+  /* segmented interval picker */
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1; padding: 9px 0; font: inherit; font-size: 13.5px; font-variant-numeric: tabular-nums;
+    background: var(--card-2); color: var(--dim);
+    border: 1px solid var(--line); border-radius: 9px; cursor: pointer;
+    transition: all .14s ease;
+  }
+  .seg button:hover { color: var(--text); border-color: var(--faint); }
+  .seg button.sel {
+    background: var(--accent); border-color: var(--accent); color: #06210f; font-weight: 650;
+  }
+  .seg-note { font-size: 12px; color: var(--faint); margin-top: 7px; }
+
+  /* managed-device note */
+  .note {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--card-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; color: var(--dim); font-size: 12.5px;
+  }
+  .note svg { flex: none; margin-top: 1px; color: var(--faint); }
+
+  /* footer */
+  .foot { display: flex; gap: 10px; align-items: center; padding-top: 4px; }
+  .foot .spacer { flex: 1; }
+  button.btn {
+    font: inherit; font-size: 14px; padding: 10px 18px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--card-2); color: var(--text);
+    transition: all .14s ease;
+  }
+  button.btn:hover:not(:disabled) { border-color: var(--faint); background: var(--card); }
+  button.btn:disabled { opacity: .5; cursor: default; }
+  button.primary {
+    background: var(--accent); border-color: var(--accent); color: #06210f; font-weight: 650;
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent-dim); border-color: var(--accent-dim); color: #fff; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 20px);
+    background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
+    border-radius: 10px; padding: 10px 16px; font-size: 13px;
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.bad { border-color: var(--bad); color: var(--bad); }
+</style>
+
+<div class="wrap">
+  <div class="status ok" id="status">
+    <div class="dot"></div>
+    <div class="txt">
+      <h1 id="st-head">Starting…</h1>
+      <p id="st-detail">Reading configuration</p>
+    </div>
+    <div class="ring" id="ring">
+      <svg width="58" height="58">
+        <circle class="track" cx="29" cy="29" r="24"></circle>
+        <circle class="fill" id="ring-fill" cx="29" cy="29" r="24"
+                stroke-dasharray="150.8" stroke-dashoffset="0"></circle>
+      </svg>
+      <b id="ring-txt">--:--</b>
+    </div>
+  </div>
+
+  <div class="sect">Keep-awake</div>
+  <div class="card">
+    <div class="row">
+      <div class="lbl">
+        <b>Keep the Sub Awake</b>
+        <span id="enabled-sub">Sends a silent pulse so the sub never sleeps</span>
+      </div>
+      <div class="help" title="Master switch for the keep-alive pulse.&#10;&#10;When off, nothing is sent and the sub falls asleep on its own after about 16 minutes — which mutes the monitors too, and pops when it next wakes.">?</div>
+      <div class="sw" id="sw-enabled"></div>
+    </div>
+
+    <div class="row stack">
+      <div class="head">
+        <div class="lbl"><b>Output Device</b></div>
+        <div class="help" title="The audio device the silent pulse plays through.&#10;&#10;This must be a DEDICATED device wired to the sub's spare input — not the one you listen through. The app pins its volume and sample rate, so anything else using it would be disrupted.&#10;&#10;It also needs to run at 96 kHz or higher: the pulse is above hearing, and a slower device cannot carry it.">?</div>
+      </div>
+      <select id="device"></select>
+      <div class="hint" id="cap"></div>
+      <div class="hint warn" id="dedicated" style="display:none"></div>
+    </div>
+
+    <div class="row stack">
+      <div class="head">
+        <div class="lbl"><b>Interval</b></div>
+        <div class="help" title="How often the pulse fires.&#10;&#10;The sub falls asleep after about 16 minutes with no signal, and every pulse restarts that clock. 12 minutes leaves a comfortable ~4 minute margin. Shorter is safer and never harmful — the pulse is inaudible either way.">?</div>
+      </div>
+      <div class="seg" id="seg"></div>
+      <div class="seg-note">Minutes between pulses. The sub sleeps after ~16 min, so 12 leaves ~4 min of margin.</div>
+    </div>
+  </div>
+
+  <div class="sect">Startup</div>
+  <div class="card">
+    <div class="row">
+      <div class="lbl">
+        <b>Start with Windows</b>
+        <span>Otherwise the sub sleeps whenever the app isn't running</span>
+      </div>
+      <div class="help" title="Start T10S Keep-Awake automatically when you sign in to Windows.&#10;&#10;Recommended: if the app isn't running, the sub sleeps after ~16 minutes and pops when it wakes.">?</div>
+      <div class="sw" id="sw-autostart"></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm.75 10.5h-1.5v-5h1.5v5zM8 5.4a.9.9 0 110-1.8.9.9 0 010 1.8z"/></svg>
+    <div>This device is <b>reserved for the keep-alive</b>. Its volume is held at the safe level, and each pulse takes exclusive control of it for a few seconds — so anything else playing through it would be interrupted. Use a dedicated dongle, not your listening device.</div>
+  </div>
+
+  <div class="foot">
+    <button class="btn" id="btn-test">Send Test Pulse</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-cancel">Cancel</button>
+    <button class="btn primary" id="btn-save">Save</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const send = (o) => window.ipc.postMessage(JSON.stringify(o));
+  const RING_LEN = 2 * Math.PI * 24;
+
+  let state = { devices: [], device: "", interval: 12, autostart: false, enabled: true, intervals: [] };
+  let dirty = false;
+
+  // The window is sized to the page, not the other way round: content height shifts with the
+  // Windows text-scaling setting and with whether the dedicated-device warning is showing, so a
+  // hardcoded window height would eventually produce a scrollbar or a gap.
+  let lastFit = 0;
+  let fits = 0;
+  function fit() {
+    // Content height in CSS px. The device pixel ratio goes with it: CSS px and the window's
+    // logical px are not the same unit when Windows text scaling is in play, and converting on
+    // the Rust side is what stops a resize from feeding back into the next measurement.
+    const h = Math.ceil(document.querySelector(".wrap").getBoundingClientRect().height);
+    if (h <= 0 || Math.abs(h - lastFit) < 4) return;
+    if (++fits > 8) return; // safety valve: never let fitting become a loop
+    lastFit = h;
+    send({ cmd: "resize", height: h, dpr: window.devicePixelRatio || 1 });
+  }
+
+  function toast(msg, bad) {
+    const t = $("toast");
+    t.textContent = msg;
+    t.className = "toast show" + (bad ? " bad" : "");
+    clearTimeout(t._h);
+    t._h = setTimeout(() => (t.className = "toast"), 2600);
+  }
+
+  // ---- called from Rust -------------------------------------------------------------------
+  window.__init = (d) => {
+    state = d;
+    const sel = $("device");
+    sel.innerHTML = "";
+    for (const name of d.devices) {
+      const o = document.createElement("option");
+      o.value = name; o.textContent = name;
+      if (name === d.device) o.selected = true;
+      sel.appendChild(o);
+    }
+    if (!d.devices.length) {
+      const o = document.createElement("option");
+      o.textContent = "No Output Devices Found";
+      sel.appendChild(o);
+    }
+
+    const seg = $("seg");
+    seg.innerHTML = "";
+    for (const m of d.intervals) {
+      const b = document.createElement("button");
+      b.textContent = m;
+      b.dataset.v = m;
+      if (m === d.interval) b.classList.add("sel");
+      b.onclick = () => {
+        state.interval = m;
+        [...seg.children].forEach((c) => c.classList.toggle("sel", +c.dataset.v === m));
+        // Applied at once so the countdown re-targets while you're watching it, rather than
+        // silently on Save (which closes the window before you'd ever see the effect).
+        send({ cmd: "set_interval", value: m });
+      };
+      seg.appendChild(b);
+    }
+
+    $("sw-enabled").classList.toggle("on", d.enabled);
+    $("sw-autostart").classList.toggle("on", d.autostart);
+    requestAnimationFrame(fit);
+  };
+
+  window.__capability = (c) => {
+    const el = $("cap");
+    el.className = "hint " + (c.ready ? "ok" : "bad");
+    el.innerHTML =
+      (c.ready
+        ? '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M6.2 11.9L2.8 8.5l1.1-1.1 2.3 2.3 5.9-5.9 1.1 1.1z"/></svg>'
+        : '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3 9.9l-1.1 1.1L8 9.1 6.1 11 5 9.9 6.9 8 5 6.1 6.1 5 8 6.9 9.9 5 11 6.1 9.1 8z"/></svg>') +
+      "<span>" + c.text + "</span>";
+    const ded = $("dedicated");
+    if (c.is_default) {
+      ded.style.display = "flex";
+      ded.innerHTML = '<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.3l7 12.4H1L8 1.3zm.75 9.2h-1.5v-4h1.5v4zm-.75 3.1a.9.9 0 110-1.8.9.9 0 010 1.8z"/></svg>' +
+        "<span>This is your default playback device. The app pins its volume and sample rate — choose a dedicated device instead.</span>";
+    } else {
+      ded.style.display = "none";
+    }
+    requestAnimationFrame(fit);
+  };
+
+  window.__status = (s) => {
+    $("status").className = "status " + s.kind;
+    $("st-head").textContent = s.head;
+    $("st-detail").textContent = s.detail;
+    $("ring-txt").textContent = s.clock;
+    $("ring-fill").style.strokeDasharray = RING_LEN;
+    $("ring-fill").style.strokeDashoffset = RING_LEN * (1 - s.frac);
+    $("ring").style.opacity = s.frac >= 0 ? 1 : 0.35;
+    $("btn-test").disabled = !!s.testing;
+    $("btn-test").textContent = s.testing ? "Pulsing…" : "Send Test Pulse";
+    $("sw-enabled").classList.toggle("on", s.enabled);
+  };
+
+  window.__saved = () => toast("Saved");
+  window.__error = (m) => toast(m, true);
+  window.__toast = (m) => toast(m);
+
+  // ---- user actions -----------------------------------------------------------------------
+  $("sw-enabled").onclick = () => {
+    const on = !$("sw-enabled").classList.contains("on");
+    $("sw-enabled").classList.toggle("on", on);
+    send({ cmd: "set_enabled", value: on });   // master switch applies immediately
+  };
+  $("sw-autostart").onclick = () => {
+    const on = !$("sw-autostart").classList.contains("on");
+    $("sw-autostart").classList.toggle("on", on);
+    state.autostart = on; dirty = true;
+  };
+  $("device").onchange = (e) => {
+    state.device = e.target.value; dirty = true;
+    send({ cmd: "select_device", name: e.target.value });
+  };
+  $("btn-test").onclick = () => send({ cmd: "test", device: state.device });
+  $("btn-cancel").onclick = () => send({ cmd: "close" });
+  $("btn-save").onclick = () =>
+    send({ cmd: "save", device: state.device, interval: state.interval, autostart: state.autostart });
+
+  // Anything that reflows the page (a warning appearing, text wrapping differently) re-fits.
+  new ResizeObserver(() => fit()).observe(document.querySelector(".wrap"));
+
+  send({ cmd: "ready" });
+</script>

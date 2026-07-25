@@ -1,0 +1,11 @@
+# Statically link the C runtime for release builds.
+#
+# This is a property of the artifact, not of any one machine: it drops the dependency on the VC++
+# redistributable so the exe runs on a clean Windows install. Keeping it in version control means a
+# build from a fresh clone matches the binary attached to the GitHub release.
+#
+# Machine-specific settings do NOT belong in this file. If you need build artifacts somewhere other
+# than ./target — e.g. because your working copy lives inside a synced folder — set the
+# CARGO_TARGET_DIR environment variable, which overrides the default without touching the repo.
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

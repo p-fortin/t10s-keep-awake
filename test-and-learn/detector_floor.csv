@@ -1,0 +1,15 @@
+freq_hz,floor_dbfs,note
+40,-24,low band flat
+50,-24,low band flat
+60,-24,low band flat
+70,-24,low band flat
+250,-32,most sensitive
+500,-32,most sensitive
+1000,-32,most sensitive
+2000,-32,most sensitive
+4000,-24,rolling off
+8000,-24,rolling off
+12000,-18,rolling off
+16000,-12,plateau (max-safe level)
+20000,-12,plateau (max-safe level)
+22000,-12,plateau (top of 48kHz output)
