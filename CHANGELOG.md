@@ -3,6 +3,13 @@
 All notable changes to T10s_Keep_Awake are recorded here.
 
 ## [Unreleased]
+
+## [0.1.0] — 2026-07-25
+First public release. A prebuilt `t10s_keep_awake.exe` is attached to the
+[v0.1.0 release](https://github.com/p-fortin/t10s-keep-awake/releases/tag/v0.1.0); the C runtime is
+linked statically, so it needs no VC++ redistributable. The binary is unsigned, so SmartScreen warns
+about an unknown publisher.
+
 ### Added — the app grew up (2026-07-25)
 **Settings window rewritten as a local HTML page** rendered by Edge WebView2 (`wry` + `tao`),
 replacing the native Win32 form. Dark/light following the Windows theme, a status card with a live
